@@ -1,0 +1,10 @@
+# Default thresholds, used only when the repo has no golangci config of its own.
+version: "2"
+linters:
+  settings:
+    gocognit:
+      min-complexity: 20
+    gocyclo:
+      min-complexity: 15
+    dupl:
+      threshold: 100

@@ -1,0 +1,7 @@
+{
+  "name": "papers-please",
+  "owner": { "name": "Eric Warehime" },
+  "plugins": [
+    { "name": "papers-please", "source": "./", "description": "Quality gate for agent patches." }
+  ]
+}
