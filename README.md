@@ -35,3 +35,7 @@ gives up and reports to the user.
 - Formatting after each edit (`PostToolUse`).
 - A warning when a diff grows past a size budget.
 - Asking before the agent edits tests while a test failure is outstanding.
+
+## License
+
+MIT, see [LICENSE](LICENSE).

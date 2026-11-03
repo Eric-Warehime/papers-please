@@ -1,7 +1,14 @@
 {
   "name": "papers-please",
-  "owner": { "name": "Eric Warehime" },
+  "description": "Quality gate for coding-agent patches.",
+  "owner": {
+    "name": "Eric Warehime"
+  },
   "plugins": [
-    { "name": "papers-please", "source": "./", "description": "Quality gate for agent patches." }
+    {
+      "name": "papers-please",
+      "source": "./",
+      "description": "Quality gate for agent patches."
+    }
   ]
 }
