@@ -30,6 +30,12 @@ MAX_OUTPUT = 8000  # Claude Code moves hook output over 10k chars to a file.
 MAX_REVIEW_DIFF = 150_000
 MAX_CONVERSATION = 40_000
 MAX_MESSAGE = 6_000
+# Appended to Stop feedback: the gate's output scrolls Claude's summary out of view, and no hook runs
+# before the final message, so the reply after a block has to carry the summary again.
+RESTATE = (
+    "Once you have addressed the findings below, end your reply with your complete summary of the whole turn, "
+    "updated for these changes. The user won't scroll back to the earlier one."
+)
 
 SUPPRESSION = re.compile(r"//\s*nolint|#\s*noqa|#\s*type:\s*ignore|#!?\[allow\(|\bt\.Skip(Now)?\(|pytest\.mark\.skip|unittest\.skip|#\[ignore\]")
 TEST_DEF = re.compile(r"^\s*func Test\w*\(|^\s*def test_\w*\(|^\s*#\[test\]")
@@ -427,7 +433,7 @@ def on_stop(event, root, base, st):
         )
         return 0, report(st, notices, missing), ""
     st.update(blocked=h, blocked_stage=stage)
-    return 2, "\n".join(filter(None, [note, failure])), ""
+    return 2, "\n".join(filter(None, [note, RESTATE, failure])), ""
 
 
 def report(st, notices, missing):

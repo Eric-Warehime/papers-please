@@ -40,7 +40,8 @@ On `Stop`, `hooks/gate.py` runs these stages in order when the turn changed the 
    else Codex CLI, else `claude -p --model $CODER_REVIEW_MODEL` (default `sonnet`).
 
 A failure blocks the stop and feeds the output to Claude, headed by a fix strategy for each kind of
-finding. Suppression and review findings can be rebutted by stopping again without changes; check
+finding. It also asks Claude to end its next reply with its full summary of the turn, since the
+gate's output scrolls the original out of view and no hook can run before it. Suppression and review findings can be rebutted by stopping again without changes; check
 failures cannot. After 3 blocks per turn the gate gives up and reports to the user.
 
 Lint findings only count when the block they start on (the whole function, for a complexity finding)
