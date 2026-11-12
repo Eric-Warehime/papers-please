@@ -1,6 +1,4 @@
-<p align="center"><img src="assets/papers-please.png" alt="papers-please logo" width="160"></p>
-
-# papers-please
+# <img src="assets/papers-please.png" alt="" width="48" align="center"> papers-please
 
 A Claude Code plugin that checks every patch an agent writes before it lets the turn end:
 lint, complexity and test checks, then a review by a different model.
