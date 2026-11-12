@@ -1,3 +1,5 @@
+<p align="center"><img src="assets/papers-please.png" alt="papers-please logo" width="160"></p>
+
 # papers-please
 
 A Claude Code plugin that checks every patch an agent writes before it lets the turn end:
@@ -63,6 +65,11 @@ A repo's own linter config wins over these defaults, except where noted.
 
 - A warning when a diff grows past a size budget.
 - Asking before the agent edits tests while a test failure is outstanding.
+
+## Disclaimer
+
+This is an independently developed coding-agent plugin. It is not affiliated with, endorsed by, or
+sponsored by the developer or publisher of the video game Papers, Please.
 
 ## License
 
