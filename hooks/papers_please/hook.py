@@ -1,5 +1,6 @@
 """Quality gate for agent patches.
 
+`session` (SessionStart) tells the user and Claude which tools the checks lack, pointing to the doctor.
 `prompt` (UserPromptSubmit) records the request and the tree state at turn start, and tells Claude about
 files the last Stop reformatted.
 `edit` (PostToolUse) formats the edited file, tells Claude if that changed it, and feeds what lint
@@ -18,7 +19,7 @@ import re
 import sys
 from pathlib import Path
 
-from . import languages, lints, model
+from . import doctor, languages, lints, model
 from .changes import Changes
 from .checks import SCRATCH, Ctx, joined
 from .proc import git
@@ -160,6 +161,16 @@ def _reformatted(files, when):
     return f"papers-please reformatted {', '.join(files)} {when}; line numbers refer to the reformatted files."
 
 
+def _on_session(_event, root, _st):
+    if not (lacking := doctor.missing(root)):
+        return 0, "", ""
+    note = (
+        f"papers-please is missing {', '.join(lacking)}, so those checks are skipped. "
+        "Run /papers-please:doctor to install what's missing."
+    )
+    return 0, note, note
+
+
 def _on_prompt(event, root, st):
     diff, _ = Changes(root).patch()
     st.update(
@@ -265,7 +276,12 @@ def main():
     state_dir.mkdir(parents=True, exist_ok=True)
     state_file = state_dir / f"{event.get('session_id', 'default')}.json"
     st = json.loads(state_file.read_text()) if state_file.exists() else {}
-    handler = {"prompt": _on_prompt, "edit": _on_edit, "stop": _on_stop}[sys.argv[1]]
+    handler = {
+        "session": _on_session,
+        "prompt": _on_prompt,
+        "edit": _on_edit,
+        "stop": _on_stop,
+    }[sys.argv[1]]
     code, message, context = handler(event, root, st)
     state_file.write_text(json.dumps(st))
     if len(message) > _MAX_OUTPUT:
@@ -274,7 +290,9 @@ def main():
         sys.stderr.write(message)
     elif message or context:
         out = {"systemMessage": message} if message else {}
-        if context:  # Shown to Claude; Claude Code supports this on UserPromptSubmit and PostToolUse.
+        if (
+            context
+        ):  # Shown to Claude on SessionStart, UserPromptSubmit and PostToolUse.
             out["hookSpecificOutput"] = {
                 "hookEventName": event["hook_event_name"],
                 "additionalContext": context,

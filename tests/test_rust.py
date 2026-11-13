@@ -2,11 +2,9 @@ import tomllib
 from pathlib import Path
 
 from papers_please import rust
-from papers_please.checks import Ctx
 
 
-def test_clippy(tmp_path, monkeypatch):
-    monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "none"))
+def test_clippy(tmp_path, fake_ctx):
     (tmp_path / ".papers-please.toml").write_text(
         '[clippy]\nenable = ["unwrap_used"]\ndisable = ["redundant_else"]\nsettings = { too-many-lines-threshold = 60 }\n'
     )
@@ -20,8 +18,10 @@ def test_clippy(tmp_path, monkeypatch):
     (tmp_path / "clippy.toml").write_text(
         'cognitive-complexity-threshold = 30\ndisallowed-methods = [{ path = "std::process::exit", reason = "no" }]\n'
     )
-    ctx = Ctx(tmp_path)
-    flags, env = rust.clippy(ctx, tmp_path / "c", tmp_path)
+    ctx = fake_ctx(tmp_path, {"locate-project": str(tmp_path / "Cargo.toml")})
+    rust.check(ctx, ["c/src/lib.rs"])
+    cmd, env = ctx.call("clippy", "--all-targets")
+    flags = cmd[cmd.index("--") + 1 :]
     assert "clippy::needless_pass_by_value" not in flags
     assert flags[flags.index("clippy::unwrap_used") - 1] == "-W"
     assert flags[flags.index("clippy::redundant_else") - 1] == "-A"

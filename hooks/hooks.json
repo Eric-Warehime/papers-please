@@ -1,13 +1,16 @@
 {
   "hooks": {
+    "SessionStart": [
+      { "matcher": "startup", "hooks": [ { "type": "command", "command": "sh \"${CLAUDE_PLUGIN_ROOT}/hooks/run.sh\" session", "timeout": 30 } ] }
+    ],
     "UserPromptSubmit": [
-      { "hooks": [ { "type": "command", "command": "uv run -q --script \"${CLAUDE_PLUGIN_ROOT}/hooks/gate.py\" prompt", "timeout": 30 } ] }
+      { "hooks": [ { "type": "command", "command": "sh \"${CLAUDE_PLUGIN_ROOT}/hooks/run.sh\" prompt", "timeout": 30 } ] }
     ],
     "PostToolUse": [
-      { "matcher": "Write|Edit|MultiEdit", "hooks": [ { "type": "command", "command": "uv run -q --script \"${CLAUDE_PLUGIN_ROOT}/hooks/gate.py\" edit", "timeout": 120 } ] }
+      { "matcher": "Write|Edit|MultiEdit", "hooks": [ { "type": "command", "command": "sh \"${CLAUDE_PLUGIN_ROOT}/hooks/run.sh\" edit", "timeout": 120 } ] }
     ],
     "Stop": [
-      { "hooks": [ { "type": "command", "command": "uv run -q --script \"${CLAUDE_PLUGIN_ROOT}/hooks/gate.py\" stop", "timeout": 1800, "statusMessage": "Running quality gate..." } ] }
+      { "hooks": [ { "type": "command", "command": "sh \"${CLAUDE_PLUGIN_ROOT}/hooks/run.sh\" stop", "timeout": 1800, "statusMessage": "Running quality gate..." } ] }
     ]
   }
 }

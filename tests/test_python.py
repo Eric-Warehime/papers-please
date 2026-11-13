@@ -1,14 +1,16 @@
 from papers_please import config, python
-from papers_please.checks import Ctx
 
 
-def ctx(root, pol):
-    c = Ctx(root)
-    c.policy = lambda _tool: pol
-    return c
+def ruff_args(fake_ctx, root, pol):
+    """The arguments `check` gives ruff for a.py beyond its own."""
+    ctx = fake_ctx(root)
+    ctx.policy = lambda _tool: pol
+    python.check(ctx, ["a.py"])
+    cmd, _ = ctx.call("ruff", "check")
+    return cmd[cmd.index("concise") + 1 : -1]
 
 
-def test_ruff_args(tmp_path):
+def test_ruff_args(tmp_path, fake_ctx):
     (tmp_path / "base.toml").write_text(
         '[lint]\nignore = ["SIM108"]\nmccabe.max-complexity = 20\n'
     )
@@ -21,7 +23,7 @@ def test_ruff_args(tmp_path):
         disable={"ERA"},
         default_settings={"lint.mccabe.max-complexity": 10, "lint.pylint.max-args": 5},
     )
-    args = python.ruff_args(ctx(tmp_path, pol), ["a.py"])
+    args = ruff_args(fake_ctx, tmp_path, pol)
     assert args == [
         "--extend-select",
         "ARG,RET,SIM108",
@@ -32,11 +34,11 @@ def test_ruff_args(tmp_path):
     ]
 
 
-def test_no_ruff_config(tmp_path):
+def test_no_ruff_config(tmp_path, fake_ctx):
     pol = config.Policy(
         defaults={"RET"}, default_settings={"lint.mccabe.max-complexity": 10}
     )
-    assert python.ruff_args(ctx(tmp_path, pol), ["a.py"]) == [
+    assert ruff_args(fake_ctx, tmp_path, pol) == [
         "--extend-select",
         "RET",
         "--config",

@@ -19,9 +19,12 @@ import yaml
 
 from . import config, languages, model
 from .checks import joined
+from .tools import Tool
 
 _LINTS = Path(__file__).resolve().parent.parent / "lints"
 _MAX_SUBJECT = 20_000
+_AST_GREP = Tool("ast-grep", pypi="ast-grep-cli")
+TOOLS = (_AST_GREP,)
 _AST_GREP_KEYS = ("rule", "constraints", "utils", "transform", "message")
 _KEYS = {"id", "language", "subject", "ask", "criteria", "note", *_AST_GREP_KEYS}
 _JUDGE_PROMPT = """You are checking code for a quality gate. Each rule below is a statement; decide for each
@@ -65,7 +68,7 @@ def _matches(ctx, spec, files):
         )
         for l in langs
     )
-    if not (sg := ctx.tool("ast-grep", pypi="ast-grep-cli")):
+    if not (sg := ctx.tool(_AST_GREP)):
         return [], ""
     p = ctx.run([*sg, "scan", "--inline-rules", rules, "--json=stream", *files])
     if p.returncode and p.stderr.strip():

@@ -6,8 +6,15 @@ from pathlib import Path
 
 from . import config
 from .checks import joined
+from .tools import Tool
 
 NAME, SUFFIX = "Rust", ".rs"
+_RUSTUP = "https://rustup.rs"
+_CARGO = Tool("cargo", manual=f"install Rust with rustup: {_RUSTUP}")
+_RUSTFMT = Tool("rustfmt", install={"rustup": "rustfmt"}, manual=_RUSTUP)
+_CLIPPY = Tool("cargo-clippy", install={"rustup": "clippy"}, manual=_RUSTUP)
+_LIZARD = Tool("lizard", pypi="lizard")
+TOOLS = (_CARGO, _RUSTFMT, _CLIPPY, _LIZARD)
 
 
 def _manifest(d):
@@ -81,17 +88,10 @@ def _clippy_flags(ctx, crate, ws):
     ]
 
 
-def clippy(ctx, crate, ws):
-    """The lint flags and environment for running clippy on `crate` in workspace `ws`."""
-    return _clippy_flags(ctx, crate, ws), {
-        "CLIPPY_CONF_DIR": str(_clippy_conf(ctx, crate))
-    }
-
-
 def fix(ctx, f):
     """Formats f alone, through stdin so rustfmt doesn't also reformat the modules f declares."""
     crate = ctx.project(f, "Cargo.toml")
-    rustfmt, cargo = ctx.tool("rustfmt"), ctx.tool("cargo")
+    rustfmt, cargo = ctx.tool(_RUSTFMT), ctx.tool(_CARGO)
     if not (crate and rustfmt and cargo):
         return ""
     edition = _inherited(crate, _workspace(ctx, cargo, crate), "package", "edition")
@@ -108,7 +108,7 @@ def fix(ctx, f):
 
 def _lizard(ctx, files):
     pol = ctx.policy("lizard")
-    lizard = pol.on("CCN") and ctx.tool("lizard", pypi="lizard")
+    lizard = pol.on("CCN") and ctx.tool(_LIZARD)
     if not lizard:
         return ""
     return ctx.lint([*lizard, "-w", "-C", str(pol.resolve({})["CCN"]), *files])
@@ -116,12 +116,13 @@ def _lizard(ctx, files):
 
 def check(ctx, files):
     crates = sorted({c for f in files if (c := ctx.project(f, "Cargo.toml"))})
-    if not crates or not (cargo := ctx.tool("cargo")):
+    if not crates or not (cargo := ctx.tool(_CARGO)):
         return ""
     out = []
     for crate in crates:
         ws = _workspace(ctx, cargo, crate)
-        flags, env = clippy(ctx, crate, ws)
+        flags = _clippy_flags(ctx, crate, ws)
+        env = {"CLIPPY_CONF_DIR": str(_clippy_conf(ctx, crate))}
         manifest = ["--manifest-path", str(crate / "Cargo.toml")]
         clippy_cmd = [*cargo, "clippy", "-q", "--message-format", "short", *manifest]
         # Diagnostic paths are relative to the workspace root.

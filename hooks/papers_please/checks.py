@@ -2,7 +2,6 @@
 
 import hashlib
 import shlex
-import shutil
 import tempfile
 from pathlib import Path
 
@@ -44,17 +43,16 @@ class Ctx:
             self._policies = config.load(self.root)
         return self._policies.get(tool) or config.Policy()
 
-    def tool(self, name, pypi=None, plugins=()):
-        """The command that runs CLI `name`: from PATH, else through uvx when it is on PyPI as `pypi`.
-        None if neither works, and the tool is reported missing. `plugins` (PyPI packages) force uvx,
-        since a copy on PATH may lack them."""
-        if not plugins and shutil.which(name):
-            return [name]
-        if pypi and shutil.which("uvx"):
-            src = ["--from", pypi] if pypi != name else []
-            return ["uvx", *src, *(a for p in plugins for a in ("--with", p)), name]
-        self.missing.append(f"{name} is not installed, so its checks were skipped")
-        return None
+    def tool(self, tool):
+        """The command that runs `tool` (a tools.Tool), or None, reporting it missing."""
+        cmd = tool.command()
+        if cmd is None:
+            ours = tool.install or tool.pypi
+            hint = "run /papers-please:doctor to install it" if ours else tool.manual
+            self.missing.append(
+                f"{tool.name} is not installed, so its checks were skipped; {hint}."
+            )
+        return cmd
 
     def find(self, path, *names, where=Path.is_file):
         """The nearest file named one of `names` that satisfies `where`, searching from `path`'s

@@ -32,6 +32,11 @@ _REVIEWERS = [
 ]
 
 
+def reviewer():
+    """The name of the first reviewer CLI installed, which ask tries first, or None."""
+    return next((name for name, cmd in _REVIEWERS if shutil.which(cmd[0])), None)
+
+
 def ask(root, prompt, valid, notices):
     """Sends prompt to the first reviewer CLI installed, moving to the next if one fails or its answer
     doesn't satisfy valid(answer). Returns the reviewer's name and answer, or (None, "")."""

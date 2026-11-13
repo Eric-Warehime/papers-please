@@ -2,14 +2,27 @@
 golangci-lint runs with the module's own config plus our linters and settings where it says nothing
 about them, written to a temporary file."""
 
-import copy
-
 import yaml
 
 from . import config
 from .checks import joined
+from .tools import Tool
 
 NAME, SUFFIX = "Go", ".go"
+_GO = Tool(
+    "go",
+    probe=("version",),
+    install={"brew": "go", "apt-get": "golang-go", "dnf": "golang"},
+    manual="https://go.dev/dl/",
+)
+_GOLANGCI_LINT = Tool(
+    "golangci-lint",
+    probe=("version",),
+    version=r"version v?2\.",  # The configs we generate are in v2's format.
+    install={"brew": "golangci-lint"},
+    manual="https://golangci-lint.run/welcome/install/",
+)
+TOOLS = (_GO, _GOLANGCI_LINT)
 _FORMATTERS = {"gci", "gofmt", "gofumpt", "goimports", "golines", "swaggo"}
 _RUN_FLAGS = [
     "--path-mode=abs",
@@ -74,9 +87,10 @@ def _revive(pol, settings, repo_runs_it):
         _put(settings, "revive.rules", rules)
 
 
-def merged(pol, repo):
-    """The repo's golangci config combined with our defaults and the harness config."""
-    cfg = copy.deepcopy(repo) or {"version": "2"}
+def _merged(pol, repo):
+    """The repo's golangci config (changed in place) combined with our defaults and the harness
+    config."""
+    cfg = repo or {"version": "2"}
     linters, formatters = (
         cfg.setdefault("linters", {}),
         cfg.setdefault("formatters", {}),
@@ -102,7 +116,7 @@ def _golangci(ctx, lint, mod, *args):
     """golangci-lint `args` in module directory `mod`, with the combined config."""
     mod = mod.resolve()
     repo, cfg_dir = _repo_config(ctx, lint, mod)
-    cfg = merged(ctx.policy("golangci"), repo)
+    cfg = _merged(ctx.policy("golangci"), repo)
     # Paths in the repo's config are relative to its directory, and the combined file lives elsewhere.
     mode = {mod: "gomod", ctx.root.resolve(): "gitroot"}.get(cfg_dir)
     if mode and "relative-path-mode" not in cfg.get("run", {}):
@@ -114,7 +128,7 @@ def _golangci(ctx, lint, mod, *args):
 
 def fix(ctx, f):
     mod = ctx.project(f, "go.mod")
-    if mod and (lint := ctx.tool("golangci-lint")):
+    if mod and (lint := ctx.tool(_GOLANGCI_LINT)):
         rel = str((ctx.root / f).relative_to(mod))
         ctx.run(_golangci(ctx, lint, mod, "fmt", rel), cwd=mod)
     return ""
@@ -127,9 +141,9 @@ def check(ctx, files):
             mods.setdefault(mod, set()).add(
                 "./" + (ctx.root / f).parent.relative_to(mod).as_posix()
             )
-    if not mods or not (go := ctx.tool("go")):
+    if not mods or not (go := ctx.tool(_GO)):
         return ""
-    lint, out = ctx.tool("golangci-lint"), []
+    lint, out = ctx.tool(_GOLANGCI_LINT), []
     for mod, pkgs in sorted(mods.items()):
         pkgs = sorted(pkgs)
         if lint:

@@ -8,8 +8,13 @@ from pathlib import Path
 from . import config
 from .checks import joined
 from .proc import git_paths
+from .tools import Tool
 
 NAME, SUFFIX = "Python", ".py"
+_RUFF = Tool("ruff", pypi="ruff")
+_FLAKE8 = Tool("flake8", pypi="flake8", plugins=("flake8-cognitive-complexity",))
+_PYTEST = Tool("pytest", manual="install it with the project's dev dependencies")
+TOOLS = (_RUFF, _FLAKE8)  # pytest is the project's, not ours to install.
 _RUFF_CONFIGS = (".ruff.toml", "ruff.toml", "pyproject.toml")
 # Fire on half-finished edits, so not reported after each edit, and unused imports are never removed.
 _EDIT_IGNORE = "F401,F841,ARG"
@@ -42,7 +47,7 @@ def _ruff_repo(ctx, files):
     return ignores, sections
 
 
-def ruff_args(ctx, files):
+def _ruff_args(ctx, files):
     """Our rules added to the repo's selection and our settings where it has none. The repo's ignores
     are passed back after ours: ruff lets an ignore win a tie with a select at the same specificity."""
     pol = ctx.policy("ruff")
@@ -64,7 +69,7 @@ def _ruff_check(ctx, ruff, files, *args):
             "check",
             "--output-format",
             "concise",
-            *ruff_args(ctx, files),
+            *_ruff_args(ctx, files),
             *args,
             *files,
         ]
@@ -75,7 +80,7 @@ def fix(ctx, f):
     """Formats f. A tracked file keeps its existing style: only changed lines are formatted, bottom-up
     so earlier ranges keep their line numbers, and lint autofixes are skipped since they rewrite any
     line. Returns the lint findings left."""
-    if not (ruff := ctx.tool("ruff", pypi="ruff")):
+    if not (ruff := ctx.tool(_RUFF)):
         return ""
     if ctx.changes.is_new(f):
         ctx.run([*ruff, "format", "-q", f])
@@ -87,7 +92,7 @@ def fix(ctx, f):
                 "--fix",
                 "--unfixable",
                 "F401",
-                *ruff_args(ctx, [f]),
+                *_ruff_args(ctx, [f]),
                 f,
             ]
         )
@@ -111,9 +116,7 @@ def _flake8_repo(root):
 
 def _cognitive(ctx, files):
     pol = ctx.policy("flake8")
-    flake8 = pol.on("CCR001") and ctx.tool(
-        "flake8", pypi="flake8", plugins=["flake8-cognitive-complexity"]
-    )
+    flake8 = pol.on("CCR001") and ctx.tool(_FLAKE8)
     if not flake8:
         return ""
     cc = pol.resolve(_flake8_repo(ctx.root))["max-cognitive-complexity"]
@@ -145,7 +148,7 @@ def _tests(ctx, files):
     pytest = (
         ["uv", "run", "--frozen", "pytest"]
         if (ctx.root / "uv.lock").is_file()
-        else ctx.tool("pytest")
+        else ctx.tool(_PYTEST)
     )
     if not found or not pytest:
         return ""
@@ -155,7 +158,7 @@ def _tests(ctx, files):
 
 
 def check(ctx, files):
-    ruff = ctx.tool("ruff", pypi="ruff")
+    ruff = ctx.tool(_RUFF)
     return joined(
         [
             ruff and _ruff_check(ctx, ruff, files),

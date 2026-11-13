@@ -5,13 +5,27 @@ lint, complexity and test checks, then a review by a different model.
 
 ## Install
 
-Requires [uv](https://docs.astral.sh/uv/), which runs the hooks with Python 3.11+ and fetches the
-Python tools that aren't installed. This repo is its own plugin marketplace:
+This repo is its own plugin marketplace:
 
 ```
 claude plugin marketplace add Eric-Warehime/papers-please   # or the path to a local clone
 claude plugin install papers-please@papers-please
 ```
+
+Then, in a new Claude Code session in the repo you'll work in, run `/papers-please:doctor`
+(`/papers-please:doctor --all` to set up every language at once). It checks that the tools the gate
+needs work and installs the missing ones, asking first:
+
+| | Needs |
+|---|---|
+| Always | [uv](https://docs.astral.sh/uv/), which runs the hooks with Python 3.11+; ast-grep; a reviewer CLI (`claude`, `codex` or `gemini`) for the model-judged lints and the review |
+| Python | ruff, flake8 with flake8-cognitive-complexity |
+| Go | Go, golangci-lint v2 |
+| Rust | cargo, rustfmt and clippy (through rustup), lizard |
+
+Python tools (ruff, flake8, lizard, ast-grep) run through uvx when they aren't on PATH, so the doctor
+only fetches them into uv's cache. Others install with Homebrew or rustup; commands that need `sudo`
+(apt, dnf) and toolchains without a package manager are left for you, with instructions.
 
 Installed plugins are copied to the plugin cache, so after editing run
 `claude plugin marketplace update papers-please && claude plugin update papers-please@papers-please`,
@@ -20,7 +34,8 @@ or test uninstalled changes with `claude --plugin-dir .` from the repo root. Run
 
 ## How it works
 
-`hooks/gate.py` is the entry point for three hooks. The code is in `hooks/papers_please/`, with one
+`hooks/gate.py` is the entry point for the hooks and the doctor, run through `hooks/run.sh`, which
+says so instead of failing when uv is missing. The code is in `hooks/papers_please/`, with one
 module per language (`python.py`, `go.py`, `rust.py`), each with two functions. Add a language by
 adding a module.
 
@@ -54,7 +69,8 @@ gives up and reports to the user.
 
 Lint findings only count when the block they start on (the whole function, for a complexity finding)
 contains a line the patch changed, so existing issues elsewhere in a touched file don't block. A
-missing tool skips its checks and is reported to the user at `Stop`, once per session.
+missing tool skips its checks. Missing tools are reported at session start (a quick PATH lookup, so
+a wrong version only shows in the doctor) and at `Stop`, once per session, pointing to the doctor.
 
 ### Rules and precedence
 
