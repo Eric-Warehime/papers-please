@@ -1,6 +1,6 @@
 {
   "name": "papers-please",
-  "description": "Quality gate for agent patches: formatting and lint feedback after each edit, then per-language lint/complexity/test checks and a cross-model review on Stop.",
+  "description": "Quality gate for agent patches: formatting and lint feedback after each edit, then lint/complexity/test checks layered over the repo's own linter config, custom and model-judged lints, and a cross-model review on Stop.",
   "version": "0.1.0",
   "author": {
     "name": "Eric Warehime"

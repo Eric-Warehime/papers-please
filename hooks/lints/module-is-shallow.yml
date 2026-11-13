@@ -1,0 +1,85 @@
+# Personal convention: prefer deep modules to shallow ones. A module should
+# give callers a small interface -- usually one type, or a few complete
+# operations -- that does a useful job and hides how, not a spread of small
+# public pieces that every caller has to know how to put together.
+#
+# The subject is each changed file, sent whole. The model cannot see callers
+# in other files unless it reads them: whether other modules piece these
+# functions together is judged from the module itself.
+#
+# Adapted from a jev-lint rule. `message:` is what the finding shows the agent
+# that fixes it, and the model never reads it. With only the `ask` to go on,
+# three of three agents underscored a few helpers or moved code around. With a
+# message that says what deepening means and starts from the callers, 15 of 16
+# agent runs on six real targets (five Python modules, one Go package) gave
+# callers a smaller interface with every test passing; two of them dissolved a
+# helper-kit module into the code it served. Saying that deleting, dissolving
+# and moving code is fine keeps that on the table.
+id: module-is-shallow
+language: [Python, Go, Rust]
+subject: file
+ask: >-
+  This module's public interface is wider than its job: callers get its steps,
+  formats and helpers, or a second copy of the same operations, instead of one
+  type or a few complete operations that do the job and hide how.
+criteria:
+  "true": >-
+    The public items are steps or fragments of one larger job -- parsing,
+    splitting, looking up, formatting, validating, and the constants, markers
+    and patterns of a format -- each too small to be useful alone, so a caller
+    has to know which ones to call, in what order, and how to feed one's result
+    into the next. Or the module offers the same capability twice: public free
+    functions next to a public type whose methods do the same work (often the
+    methods call those functions, or the functions take the raw text or data the
+    type is built from), so a caller has two ways in and must pick one. That
+    stays true when some helpers are private and the docstring names the type:
+    while the duplicate public functions remain, the module is shallow. Or
+    details of how the module works -- its regexes, delimiters, keys,
+    intermediate structures, or the functions that build them -- are public
+    when only the module itself needs them. Nothing in the module's docstring
+    or layout makes the one or two items to start from obvious, or the type
+    that should be the entry point sits below a run of public free functions.
+  "false": >-
+    A caller starts from one type or a few complete operations and needs
+    nothing else public except the types and constants those operations take
+    and return: the steps, formats and helpers are private, and no public free
+    function repeats what a public type's method does. Private helpers above
+    or below the type do not count against it, and a public constant other
+    modules need -- a heading people type, a format another component writes --
+    is part of the interface, not a leaked detail. Or the module is a set of
+    independent operations that share a theme but do not build on each other --
+    conversions, accessors, validators, formatting functions, or switches a
+    registry calls one at a time -- so a caller uses any one of them without the
+    others and none takes another's result as its input; settings those
+    operations read do not change that. Or the module only declares data --
+    records, enums, constants a caller passes around -- with no behaviour to
+    hide. Or it has only one or two public items. A wide type whose methods are
+    each a complete operation on its own state is deep, not shallow.
+note: >-
+  Judge the interface a caller sees, not the amount of code: a deep module may
+  have many private helpers, and a long module can still be deep. A public item
+  that exists only to be called by the module's other public items, or that a
+  caller would only ever use together with several others, counts against the
+  module. So does a module that offers a top-level operation and also makes
+  public the rules, steps or checks that operation is built from, or that
+  describes itself as a collection of pieces or helpers other modules share.
+  Public means a name without a leading underscore, or one listed in __all__
+  when the module defines it; in Go, an exported (capitalised) name; in Rust,
+  a `pub` item. Test modules, conftest files, command-line entry points,
+  generated code and package files that only re-export names are false:
+  nothing designs them as a library interface.
+message: >-
+  This module is shallow: its public interface is wider than the job callers use
+  it for, so they put small pieces together, or choose between two ways to do
+  the same thing, instead of calling one small interface that does the job and
+  hides how. Deepen it: search for its imports to see what each caller does with
+  it, decide the one type or few complete operations that cover those uses, and
+  make them the only public names. Make the steps, formats and helpers private,
+  fold free functions that duplicate a type's methods into the type, and move
+  every caller and test onto the new interface. If the module collects helpers
+  for different jobs, move each one next to the type or module it serves instead
+  of keeping a shared kit. Keep observable behaviour the same, meaning the tests
+  and what callers get back, but deleting code nothing needs, dissolving the
+  module into the modules that use it, moving code between files and adding new
+  abstractions are all fine. Making a few helpers private or rewording the
+  docstring while callers still reach for the rest does not deepen it.

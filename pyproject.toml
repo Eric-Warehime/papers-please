@@ -1,0 +1,13 @@
+# Development only: the hooks run hooks/gate.py as a uv script, with its own dependencies.
+[project]
+name = "papers-please"
+version = "0.1.0"
+requires-python = ">=3.11"
+dependencies = ["pyyaml==6.0.3"]
+
+[dependency-groups]
+dev = ["pytest==8.4.2"]
+
+[tool.pytest.ini_options]
+pythonpath = ["hooks"]
+testpaths = ["tests"]

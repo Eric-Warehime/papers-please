@@ -1,0 +1,59 @@
+# Our defaults, opinionated toward small, flat functions. Per tool: `enable` lists the rules we turn on
+# unless the repo's own linter config turns them off, and `settings` apply where the repo's config sets
+# none. The harness config (~/.config/papers-please/config.toml, then the repo's .papers-please.toml)
+# uses the same tables, plus `disable`, and wins over the repo's config.
+
+# Rule codes or prefixes; settings are ruff config keys, passed as --config.
+[ruff]
+enable = ["C90", "PLR09", "B", "SIM", "RET", "ARG", "ERA", "PIE", "UP", "I", "BLE001", "S110"]
+settings = { lint.mccabe.max-complexity = 10 }
+
+[flake8]
+enable = ["CCR001"]
+settings = { max-cognitive-complexity = 15 }
+
+# Linters and formatters; settings are keyed by linter as under golangci's linters.settings.
+[golangci]
+enable = [
+  "gocognit", "gocyclo", "nestif", "funlen", "dupl", "revive", "unparam", "gocritic", "nakedret",
+  "errorlint", "nilerr", "unconvert", "misspell", "gofumpt", "gci",
+]
+
+[golangci.settings]
+gocognit.min-complexity = 15
+gocyclo.min-complexity = 15
+nestif.min-complexity = 4
+funlen = { lines = 80, statements = 50 }
+dupl.threshold = 100
+revive.rules = [
+  { name = "early-return" },
+  { name = "indent-error-flow" },
+  { name = "superfluous-else" },
+  { name = "unused-parameter" },
+  { name = "argument-limit", arguments = [5] },
+  { name = "function-result-limit", arguments = [3] },
+]
+
+# Table-driven tests are long and repetitive by design.
+[[golangci.exclusions]]
+path = '_test\.go'
+linters = ["funlen", "dupl"]
+
+# Lint names; settings are clippy.toml keys.
+[clippy]
+enable = [
+  "cognitive_complexity", "too_many_lines", "excessive_nesting", "redundant_else", "manual_let_else",
+  "needless_pass_by_value",
+]
+
+[clippy.settings]
+cognitive-complexity-threshold = 15
+too-many-lines-threshold = 80
+too-many-arguments-threshold = 5
+# Counts impl blocks, so a method may nest three control-flow blocks deep.
+excessive-nesting-threshold = 5
+
+# Cyclomatic complexity for Rust.
+[lizard]
+enable = ["CCN"]
+settings = { CCN = 15 }
