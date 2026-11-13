@@ -8,6 +8,25 @@ from .proc import git, git_paths
 
 _LOCATION = re.compile(r"^(.+?):(\d+):")
 _EMPTY_TREE = "4b825dc642cb6eb9a060e54bf8d69288fbee4904"
+# Refs present while an operation awaits its commit; the diff from HEAD then holds everything it brought
+# in, not just the agent's changes.
+_PENDING = ("MERGE_HEAD", "CHERRY_PICK_HEAD", "REVERT_HEAD")
+
+
+def _has(root, ref):
+    return bool(git(root, "rev-parse", "--verify", "-q", ref))
+
+
+def _base(root):
+    """What the patch is measured from: HEAD (or the empty tree before the first commit), or AUTO_MERGE
+    while an operation has stopped on conflicts. AUTO_MERGE is the merged tree with conflict markers, so
+    the patch is the agent's resolutions and later edits. None if an operation is pending without one."""
+    pending = any(_has(root, r) for r in _PENDING)
+    if (pending or _has(root, "REBASE_HEAD")) and _has(root, "AUTO_MERGE"):
+        return "AUTO_MERGE"
+    if pending:
+        return None
+    return "HEAD" if _has(root, "HEAD") else _EMPTY_TREE
 
 
 def _untracked(root):
@@ -58,21 +77,22 @@ def _block(lines, i, python):
 
 
 class Changes:
-    """The uncommitted changes in the repo at `root`, measured from HEAD (or the empty tree before the
-    first commit). Changed lines are read once, on first use."""
+    """The uncommitted changes in the repo at `root`, measured from _base. With no base, nothing counts
+    as changed. Changed lines are read once, on first use."""
 
     def __init__(self, root):
         self.root = Path(root).resolve()
-        has_head = git(self.root, "rev-parse", "--verify", "-q", "HEAD")
-        self.base = "HEAD" if has_head else _EMPTY_TREE
+        self.base = _base(self.root)
         self.sources = {}
 
     @cached_property
     def lines(self):
-        return _changed_lines(self.root, self.base)
+        return _changed_lines(self.root, self.base) if self.base else {}
 
     def patch(self):
         """The patch now (untracked files as additions) and the paths it touches."""
+        if self.base is None:
+            return "", []
         new = _untracked(self.root)
         parts = [git(self.root, "diff", self.base, "--no-color")]
         for f in new:
@@ -93,6 +113,8 @@ class Changes:
     def hunks(self, rel):
         """(first line, line count) of each hunk of path `rel`'s diff now. A count of 0 is a pure
         deletion after line `first`."""
+        if not self.base:
+            return []
         return [(s, n) for _, s, n in _hunks(self.root, self.base, rel)]
 
     def is_new(self, rel):

@@ -203,7 +203,11 @@ def _on_edit(event, root, _st):
 
 
 def _on_stop(event, root, st):
-    diff, files = Changes(root).patch()
+    changes = Changes(root)
+    if changes.base is None:
+        skipped = "papers-please skipped its checks: a merge, cherry-pick or revert awaits its commit."
+        return 0, _report(st, [], [skipped]), ""
+    diff, files = changes.patch()
     if not diff.strip() or _digest(diff) in (st.get("turn_start"), st.get("passed")):
         return 0, "", ""
     # Fix first, so the checks, the reviewer and the digests below all see the files as they will stay.

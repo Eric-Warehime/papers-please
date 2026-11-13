@@ -69,7 +69,9 @@ gives up and reports to the user.
 
 Lint findings only count when the block they start on (the whole function, for a complexity finding)
 contains a line the patch changed, so existing issues elsewhere in a touched file don't block. A
-missing tool skips its checks. Missing tools are reported at session start (a quick PATH lookup, so
+missing tool skips its checks. While a merge, rebase, cherry-pick or revert is stopped on conflicts,
+the patch is measured from git's `AUTO_MERGE` (the merged tree with conflict markers), so only the
+resolutions and later edits are checked; if one awaits its commit without conflicts, the gate skips. Missing tools are reported at session start (a quick PATH lookup, so
 a wrong version only shows in the doctor) and at `Stop`, once per session, pointing to the doctor.
 
 ### Rules and precedence
