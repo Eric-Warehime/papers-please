@@ -1,4 +1,4 @@
-"""Custom lints in hooks/lints, each on unless the harness config's [lints] table disables its id:
+"""Custom lints in gate/lints, each on unless the harness config's [lints] table disables its id:
 
 - An ast-grep rule: a YAML file with `rule` and no `ask`, reported with its `message`.
 - A model-judged rule: a YAML file with `ask`, modeled after jev-lint's. `ask` is a statement about a

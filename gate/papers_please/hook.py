@@ -221,12 +221,14 @@ def _on_stop(event, root, st):
         waived = waived + [st["blocked_stage"]]
     st["waived"] = {h: waived}
     notices = list(filter(None, [note]))
-    context = _conversation_or_prompts(event, st)
     stages = (
         ("suppressions", lambda: _suppressions(diff)),
         ("checks", lambda: _run_checks(ctx, files)),
         ("lints", lambda: _guarded(lints.judge, ctx, files, notices)),
-        ("review", lambda: model.review(root, diff, context, notices)),
+        (
+            "review",
+            lambda: model.review(root, diff, event, st.get("prompts", []), notices),
+        ),
     )
     for stage, run in stages:
         failure = "" if stage in waived else run()
@@ -238,7 +240,7 @@ def _on_stop(event, root, st):
         )  # Claude hears of the fixes at its next prompt.
         if waived:
             notices.append(
-                f"Claude declined the {' and '.join(waived)} findings; see its reply."
+                f"The agent declined the {' and '.join(waived)} findings; see its reply."
             )
         return 0, _report(st, notices, ctx.missing), ""
     st["rounds"] = st.get("rounds", 0) + 1
@@ -250,12 +252,6 @@ def _on_stop(event, root, st):
         return 0, _report(st, notices, ctx.missing), ""
     st.update(blocked=h, blocked_stage=stage)
     return 2, joined([note, _RESTATE, failure]), ""
-
-
-def _conversation_or_prompts(event, st):
-    return model.conversation(event.get("transcript_path")) or "\n---\n".join(
-        st.get("prompts", [])
-    )
 
 
 def _report(st, notices, missing):

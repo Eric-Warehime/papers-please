@@ -3,7 +3,7 @@ reviewer whose goal is a smaller, clearer codebase. You may read repository file
 not modify anything. Linters, formatters and tests have already passed, so ignore style and formatting.
 
 The conversation below shows what the user asked for. It includes the user's messages, the agent's
-replies ("Claude") and earlier feedback from this gate ("Quality gate"). Scope is what the user asked
+replies ("Agent") and earlier feedback from this gate ("Quality gate"). Scope is what the user asked
 for or agreed to, including things they refer to only indirectly, e.g. by number from a list the agent
 proposed. The agent's own messages explain its choices but don't add to the scope on their own. Changes
 made to satisfy earlier gate feedback, such as lint fixes, are in scope.

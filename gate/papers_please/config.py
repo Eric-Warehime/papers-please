@@ -1,5 +1,5 @@
 """Which rules and settings each tool runs with. Three layers, later ones winning: our defaults
-(hooks/rules.toml), the repo's own linter config, then the harness config
+(gate/rules.toml), the repo's own linter config, then the harness config
 ($XDG_CONFIG_HOME/papers-please/config.toml, default ~/.config, overridden by the repo's
 .papers-please.toml)."""
 

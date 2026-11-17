@@ -1,6 +1,6 @@
 # <img src="assets/papers-please.png" alt="" width="48" align="center"> papers-please
 
-A Claude Code plugin that checks every patch an agent writes before it lets the turn end:
+A Claude Code and OpenCode plugin that checks every patch an agent writes before it lets the turn end:
 lint, complexity and test checks, then a review by a different model.
 
 ## Install
@@ -27,15 +27,34 @@ Python tools (ruff, flake8, lizard, ast-grep) run through uvx when they aren't o
 only fetches them into uv's cache. Others install with Homebrew or rustup; commands that need `sudo`
 (apt, dnf) and toolchains without a package manager are left for you, with instructions.
 
-Installed plugins are copied to the plugin cache, so after editing run
+### OpenCode
+
+The same gate runs as an [OpenCode](https://opencode.ai) server plugin (OpenCode 2 and up). Clone this
+repo and point `plugins` at its `harness/opencode` directory, in `~/.config/opencode/opencode.json` for every
+project or in a project's `opencode.json`:
+
+```json
+{ "plugins": ["/path/to/papers-please/harness/opencode"] }
+```
+
+Then run `/papers-please:doctor` in an OpenCode session, as above. The plugin loads from the clone, so
+edits apply when OpenCode next starts.
+
+Installed Claude Code plugins are copied to the plugin cache, so after editing run
 `claude plugin marketplace update papers-please && claude plugin update papers-please@papers-please`,
 or test uninstalled changes with `claude --plugin-dir .` from the repo root. Run the tests with
 `uv run pytest`.
 
 ## How it works
 
-`hooks/gate.py` is the entry point for the hooks and the doctor, run through `hooks/run.sh`, which
-says so instead of failing when uv is missing. The code is in `hooks/papers_please/`, with one
+The gate is `gate/`, with no knowledge of any harness: `gate/gate.py` is the entry point for the hooks and
+the doctor, run through `gate/run.sh`, which says so instead of failing when uv is missing. Each harness
+gets an adapter in `harness/`. Claude Code's is `harness/claude-code/hooks.json`, which runs the gate from
+its SessionStart, UserPromptSubmit, PostToolUse and Stop hooks. OpenCode's is `harness/opencode/`: a server plugin
+(`index.ts`) that runs it at the matching points, namely a session's first prompt, each prompt, each `edit`/`write` tool
+result (the feedback is appended to the result) and the moment a top-level session would go idle, which is OpenCode's
+Stop. A block is posted as a synthetic message that keeps the session working. Anything else the gate has to say is
+for you, not the model, so the TUI part (`tui.ts`) shows it as a toast. The code is in `gate/papers_please/`, with one
 module per language (`python.py`, `go.py`, `rust.py`), each with two functions. Add a language by
 adding a module.
 
@@ -55,11 +74,13 @@ On `Stop`, these stages run in order when the turn changed the working tree:
 2. **Checks:** `check` for each changed file's language, plus the ast-grep and script
    [custom lints](#custom-lints).
 3. **Judged lints:** the model-judged custom lints.
-4. **Review:** `hooks/review-prompt.md` plus the patch and the session's recent messages (yours,
+4. **Review:** `gate/review-prompt.md` plus the patch and the session's recent messages (yours,
    Claude's replies and earlier gate feedback, from the transcript).
 
 Stages 3 and 4 go to Gemini CLI, else Codex CLI, else `claude -p --model $CODER_REVIEW_MODEL`
-(default `sonnet`).
+(default `sonnet`). The review sees the session's messages: the Claude Code transcript, or in OpenCode
+the session history, with the agent's replies labelled "Agent" and the gate's own feedback "Quality
+gate".
 
 A failure blocks the stop and feeds the output to Claude, headed by a fix strategy for each kind of
 finding. It also asks Claude to end its next reply with its full summary of the turn, since the
@@ -78,7 +99,7 @@ a wrong version only shows in the doctor) and at `Stop`, once per session, point
 
 Each linter's rules and settings come from three layers, later ones winning:
 
-1. **Our defaults** in [hooks/rules.toml](hooks/rules.toml), below.
+1. **Our defaults** in [gate/rules.toml](gate/rules.toml), below.
 2. **The repo's own linter config:** everything it turns on runs, everything it turns off stays off
    (ruff `ignore`, golangci-lint `disable`, clippy `[lints.clippy]`), and its settings apply. Where it
    says nothing, our defaults apply. For golangci-lint, the repo's config plus our additions is written
@@ -107,7 +128,7 @@ disable = ["module-is-shallow"]
 
 ### Custom lints
 
-Each file in [hooks/lints](hooks/lints) is a lint, on for every repo unless the harness config's
+Each file in [gate/lints](gate/lints) is a lint, on for every repo unless the harness config's
 `[lints]` disables its id. Findings only count where they overlap changed lines.
 
 - **ast-grep rules:** a YAML file with `id`, `language`, an [ast-grep](https://ast-grep.github.io)
@@ -123,7 +144,7 @@ Each file in [hooks/lints](hooks/lints) is a lint, on for every repo unless the 
 A YAML lint may only use the keys above, plus ast-grep's `constraints`, `utils` and `transform`;
 any other key is reported as a config error.
 
-[module-is-shallow](hooks/lints/module-is-shallow.yml) asks whether a module's public interface is
+[module-is-shallow](gate/lints/module-is-shallow.yml) asks whether a module's public interface is
 wider than its job.
 
 ## Not built yet

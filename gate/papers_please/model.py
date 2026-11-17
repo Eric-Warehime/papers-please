@@ -82,18 +82,45 @@ def _message(line):
         return "Quality gate", text
     if not text or entry.get("isMeta"):
         return None
-    return ("Claude" if entry["type"] == "assistant" else "User"), text
+    return ("Agent" if entry["type"] == "assistant" else "User"), text
 
 
-def conversation(path):
-    """Returns the session's messages from the Claude Code transcript (JSONL) at path, most recent last,
-    keeping as many recent ones as fit in _MAX_CONVERSATION characters."""
-    try:
-        lines = Path(path).read_text().splitlines()
-    except (OSError, TypeError):
-        return ""
+def _opencode_message(entry):
+    """Returns the speaker and text of an OpenCode session message, or None for shell runs, other plugins'
+    notices and everything else. An assistant message's text parts are kept; tool calls are dropped."""
+    kind, text = entry.get("type"), entry.get("text", "")
+    if kind == "user":
+        return "User", text
+    if kind == "assistant":
+        parts = [
+            c.get("text", "")
+            for c in entry.get("content", [])
+            if c.get("type") == "text"
+        ]
+        return "Agent", "\n".join(parts).strip()
+    if (
+        kind == "synthetic"
+        and (entry.get("metadata") or {}).get("source") == "papers-please"
+    ):
+        return "Quality gate", text
+    return None
+
+
+def _conversation(event):
+    """The session's messages, most recent last, keeping as many recent ones as fit in _MAX_CONVERSATION
+    characters. They come from the OpenCode messages in event["messages"] if present, else from the Claude Code
+    transcript (JSONL) at event["transcript_path"]; "" if neither is available."""
+    if "messages" in event:
+        parsed = map(_opencode_message, event["messages"])
+    else:
+        try:
+            parsed = map(
+                _message, Path(event.get("transcript_path")).read_text().splitlines()
+            )
+        except (OSError, TypeError):
+            return ""
     kept, size = [], 0
-    for who, text in reversed([m for m in map(_message, lines) if m]):
+    for who, text in reversed([m for m in parsed if m and m[1]]):
         if len(text) > _MAX_MESSAGE:
             text = text[:_MAX_MESSAGE] + "\n[message truncated]"
         size += len(text)
@@ -103,7 +130,10 @@ def conversation(path):
     return "\n\n".join(reversed(kept))
 
 
-def review(root, diff, context, notices):
+def review(root, diff, event, prompts, notices):
+    """Has a reviewer model judge the patch against what the session asked for: the hook event's messages, or
+    the recorded user `prompts` when it has none. Returns the findings to act on, or "" on a pass."""
+    context = _conversation(event) or "\n---\n".join(prompts)
     if len(diff) > _MAX_REVIEW_DIFF:
         diff = (
             diff[:_MAX_REVIEW_DIFF] + "\n[diff truncated; read the files for the rest]"

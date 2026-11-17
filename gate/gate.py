@@ -3,7 +3,7 @@
 # requires-python = ">=3.11"
 # dependencies = ["pyyaml==6.0.3"]
 # ///
-"""Entry point for the hooks in hooks.json (`gate.py session|prompt|edit|stop`, see papers_please/hook.py)
+"""Entry point for the harness adapters (`gate.py session|prompt|edit|stop`, see papers_please/hook.py)
 and the doctor skill (`gate.py doctor`, see papers_please/doctor.py)."""
 
 import sys
